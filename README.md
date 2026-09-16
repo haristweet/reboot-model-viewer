@@ -76,6 +76,27 @@ PlayStation 版『ReBoot』（SLUS-00274）のディスクイメージを読み�
 - VRAM位置は実機の配置そのままで、読み込み時の詰め直しは無い
 - UV は 0〜255 の正規化で、画素は `u × 幅 / 256`
 
+## 動きファイルの選び方
+
+`.TOM` と同じ名前の `.NAN` があっても**関節数が合わないことがある**（`RBINOM` はモデル21・動き20、
+`ZBINOML` はモデル8・動き20）。逆に `DOTGUN` `DOTCANON` `ENZOGUN` `ENZOCAN` `VBINOM` `CIVIL` `BOB` は
+自前の `.NAN` が無い。
+
+なので**関節数が一致するものだけを候補にして、名前の一致が長い順・動きの多い順**で選ぶ。
+借りた場合は画面に「動きは ○○ のものを借用」と出る。
+
+| モデル | 借りる動き |
+|---|---|
+| DOTGUN / ENZOGUN / VBINOM | BOBGUN |
+| DOTCANON / ENZOCAN | BOBCANON |
+| CIVIL | ZBINOM |
+| BOB | BOBTABLE |
+| RBINOM | RBINOML |
+| ZBINOM | ZBINOML |
+| ZBINOML | CBINOM |
+
+`GBINBOD` だけは関節9で一致するものが無く、動きが付かない。
+
 ## テクスチャが欠けているモデル
 
 `BOB` `CIVIL` `CLASH` `DOTCANON` `GBINBOD` `RBINOM` は、モデルが指しているテクスチャ名が

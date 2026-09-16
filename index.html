@@ -548,8 +548,16 @@ async function scanDisc(src,onProgress){
   const models={};
   for(const n of Object.keys(anim)){
     const m=/^(.+)\.TOM$/i.exec(n); if(!m) continue;
-    models[m[1]]={tom:anim[n],nan:anim[m[1]+'.NAN']||null};
+    models[m[1]]={tom:anim[n]};
   }
+  // 動きファイルの頭だけ読んで、関節数と動きの数を控える
+  const nans=[];
+  for(const [n,e] of Object.entries(anim)){
+    const m=/^(.+)\.NAN$/i.exec(n); if(!m) continue;
+    const head=await disc.read(e.lba,1), hv=new DataView(head.buffer);
+    nans.push({name:m[1],ent:e,njoint:hv.getUint32(4,true),count:hv.getUint32(0,true)});
+  }
+  src.nans=nans;
   // モデルを下調べして、読めないものを外す
   for(const [n,m] of Object.entries(models)){
     try{
@@ -587,6 +595,14 @@ async function scanDisc(src,onProgress){
     b.names=names;
     if(onProgress) onProgress(++done,bundles.length);
   }
+  // 関節数の合う動きファイルを選ぶ（自前が無い／関節数が合わないモデルがある）
+  const common=(a,b)=>{ let n=0; while(n<a.length&&n<b.length&&a[n]===b[n]) n++; return n };
+  for(const [n,m] of Object.entries(models)){
+    const nj=m.tom2.J.length;
+    const cand=nans.filter(x=>x.njoint===nj);
+    cand.sort((a,b)=>common(n,b.name)-common(n,a.name) || b.count-a.count || (a.name<b.name?-1:1));
+    m.nan=cand.length?cand[0]:null;
+  }
   // どのモデルにテクスチャの欠けがあるか、先に調べておく
   const have=new Set();
   for(const b of bundles) for(const n of b.names) have.add(n);
@@ -617,19 +633,12 @@ async function loadOne(src,lib,name,onProgress){
   }
   let anims=[];
   if(m.nan){
-    try{ anims=parseNan(await readFileAt(disc,m.nan),tom.J.length) }catch(e){ anims=[] }
-  }
-  if(!anims.length){
-    // 同じ系統の動きファイルを借りる（ENZOGUN → ENZO など）
-    for(const alt of ['BOB2','ENZO','MBYTE','GLITCH','HEXADEC','GBINBODY','ZEROBINO','CLASH','WEB','SLUG'])
-      if(lib.models[alt]&&lib.models[alt].nan&&alt.slice(0,3)===name.slice(0,3)){
-        try{ anims=parseNan(await readFileAt(disc,lib.models[alt].nan),tom.J.length) }catch(e){}
-        break;
-      }
+    try{ anims=parseNan(await readFileAt(disc,m.nan.ent),tom.J.length) }catch(e){ anims=[] }
   }
   const model=buildModel(tom,faces,tex,anims);
   model.missing=[...missing];
   model.name=name;
+  model.nanFrom=m.nan?m.nan.name:null;
   return model;
 }
 
@@ -779,6 +788,7 @@ function useModel(d){
   setAnim(want);
   measure();
   $('meta').innerHTML='三角形 <b>'+(d.bone.length/3)+'</b><br>関節 <b>'+d.joints.length+'</b><br>動き <b>'+d.anims.length+'</b>'
+    +(d.nanFrom&&d.nanFrom!==d.name?'<br>動きは <b>'+d.nanFrom+'</b> のものを借用':'')
     +(d.missing&&d.missing.length?'<br><span style="color:#e5736b">テクスチャ欠け: '+d.missing.join(', ')
       +'<br>（ディスクに入っていない。灰色で表示）</span>':'');
 }
