@@ -443,7 +443,9 @@ function pshPixels(e){
 const NILTEX = " nil";
 function buildAtlas(tex,pad){
   pad = pad||1;
-  const nil={w:4,h:4,rgba:(function(){const a=new Uint8Array(64);a.fill(255);return a})()};
+  const nil={w:4,h:4,rgba:(function(){const a=new Uint8Array(64);
+    for(let i=0;i<16;i++){a[i*4]=118;a[i*4+1]=116;a[i*4+2]=112;a[i*4+3]=255}
+    return a})()};
   const items=Object.entries(tex).concat([[NILTEX,nil]]).sort((a,b)=>b[1].h-a[1].h);
   const W=256; let x=0,y=0,rowh=0; const place={};
   for(const [n,e] of items){
@@ -571,6 +573,10 @@ async function scanDisc(src,onProgress){
     b.names=names;
     if(onProgress) onProgress(++done,bundles.length);
   }
+  // どのモデルにテクスチャの欠けがあるか、先に調べておく
+  const have=new Set();
+  for(const b of bundles) for(const n of b.names) have.add(n);
+  for(const m of Object.values(models)) m.lack=[...m.need].filter(n=>!have.has(n));
   return {models,bundles};
 }
 
@@ -759,7 +765,8 @@ function useModel(d){
   setAnim(want);
   measure();
   $('meta').innerHTML='三角形 <b>'+(d.bone.length/3)+'</b><br>関節 <b>'+d.joints.length+'</b><br>動き <b>'+d.anims.length+'</b>'
-    +(d.missing&&d.missing.length?'<br><span style="color:#e5736b">テクスチャ不足: '+d.missing.join(', ')+'</span>':'');
+    +(d.missing&&d.missing.length?'<br><span style="color:#e5736b">テクスチャ欠け: '+d.missing.join(', ')
+      +'<br>（ディスクに入っていない。灰色で表示）</span>':'');
 }
 function setAnim(i){
   state.anim=i; state.frame=0; state.t=0;
@@ -840,7 +847,9 @@ async function start(files){
     const names=Object.keys(LIB.models).sort();
     if(!names.length) throw new Error('モデルが見つかりませんでした');
     const ms=$('model'); ms.innerHTML='';
-    names.forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;ms.appendChild(o)});
+    names.forEach(n=>{const o=document.createElement('option');o.value=n;
+      const lk=LIB.models[n].lack||[];
+      o.textContent=n+(lk.length?'（テクスチャ欠け）':''); ms.appendChild(o)});
     ms.value=names.includes('ENZO')?'ENZO':names[0];
     ms.onchange=()=>pick(ms.value);
     $('discName').textContent=(files[0]&&files[0].name)||'';
