@@ -813,7 +813,7 @@ const U={proj:gl.getUniformLocation(prog,'uProj'),view:gl.getUniformLocation(pro
          bone:gl.getUniformLocation(prog,'uBone')};
 
 function persp(f,a,n,fa){const t=1/Math.tan(f/2);return new Float32Array(
-  [-t/a,0,0,0, 0,t,0,0, 0,0,(fa+n)/(n-fa),-1, 0,0,2*fa*n/(n-fa),0])}
+  [t/a,0,0,0, 0,t,0,0, 0,0,(fa+n)/(n-fa),-1, 0,0,2*fa*n/(n-fa),0])}
 const sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
 const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
 const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
@@ -962,8 +962,7 @@ function camAxes(){
   const dir=[Math.sin(y)*Math.cos(p),-Math.sin(p),Math.cos(y)*Math.cos(p)];   // 注視点→目
   const up=[0,-1,0];
   const x=nrm(cross(up,dir)), yv=cross(dir,x);
-  // 投影で画面Xを反転しているので、画面の右は -x
-  return {dir:dir,right:[-x[0],-x[1],-x[2]],up:yv};
+  return {dir:dir,right:x,up:yv};
 }
 function panBy(dx,dy){
   if(!M) return;
@@ -1162,7 +1161,7 @@ function drawScene(){
   gl.enable(gl.DEPTH_TEST);
   const w=$('wire').checked;
   if(w) gl.disable(gl.CULL_FACE);
-  else { gl.enable(gl.CULL_FACE); gl.frontFace(gl.CW); gl.cullFace(gl.BACK) }
+  else { gl.enable(gl.CULL_FACE); gl.frontFace(gl.CCW); gl.cullFace(gl.BACK) }
   const s=M.scale;
   const c=[M.center[0]+state.pan[0],M.center[1]+state.pan[1],M.center[2]+state.pan[2]];
   const a=camAxes();
