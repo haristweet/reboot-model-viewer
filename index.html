@@ -595,6 +595,26 @@ async function scanDisc(src,onProgress){
     b.names=names;
     if(onProgress) onProgress(++done,bundles.length);
   }
+  // ステージのプログラムに名前が書かれているモデルだけが実際に使われる
+  let used=null;
+  if(root['LEVELA.OVL']){
+    try{
+      const ov=await readFileAt(disc,root['LEVELA.OVL']);
+      used=new Set(); let cur='', pick=false;
+      for(let i=0;i+13<ov.length;i++){
+        if(ov[i]===0x41&&ov[i+1]===0x4e&&ov[i+2]===0x49&&ov[i+3]===0x4d&&
+           ov[i+4]===0x41&&ov[i+5]===0x54&&ov[i+6]===0x45&&ov[i+7]===0x5c){
+          let j=i+8, nm='';
+          while(j<ov.length&&ov[j]!==0&&nm.length<20){ nm+=String.fromCharCode(ov[j]); j++ }
+          const m=/^([A-Za-z0-9_]+)\.tom$/i.exec(nm);
+          if(m) used.add(m[1].toUpperCase());
+        }
+      }
+      if(!used.size) used=null;
+    }catch(e){ used=null }
+  }
+  for(const [n,m] of Object.entries(models)) m.unused = used ? !used.has(n.toUpperCase()) : false;
+
   // 関節数の合う動きファイルを選ぶ（自前が無い／関節数が合わないモデルがある）
   const common=(a,b)=>{ let n=0; while(n<a.length&&n<b.length&&a[n]===b[n]) n++; return n };
   for(const [n,m] of Object.entries(models)){
@@ -639,6 +659,7 @@ async function loadOne(src,lib,name,onProgress){
   model.missing=[...missing];
   model.name=name;
   model.nanFrom=m.nan?m.nan.name:null;
+  model.unused=!!m.unused;
   return model;
 }
 
@@ -782,13 +803,21 @@ function useModel(d){
   const as=$('anim'); as.innerHTML='';
   d.anims.forEach((a,i)=>{const o=document.createElement('option');o.value=i;o.textContent=a.name;as.appendChild(o)});
   if(!d.anims.length){const o=document.createElement('option');o.textContent='（なし）';as.appendChild(o)}
-  let want=d.anims.findIndex(a=>/stand/i.test(a.name)); if(want<0) want=0;
+  const score=nm=>{ const n=nm.toLowerCase(); let s2=0;
+    if(n.includes('stand')) s2+=100;
+    if(n.includes('loop')) s2+=60;
+    if(n.includes('idle')||n.includes('float')||n.includes('stop')) s2+=50;
+    if(/death|die|hit|tear|split|zap/.test(n)) s2-=100;
+    return s2 };
+  let want=0, best=-1e9;
+  d.anims.forEach((a,i)=>{ const s2=score(a.name); if(s2>best){ best=s2; want=i } });
   as.value=String(want);
   state.anim=want; state.frame=0; state.t=0;
   setAnim(want);
   measure();
   $('meta').innerHTML='三角形 <b>'+(d.bone.length/3)+'</b><br>関節 <b>'+d.joints.length+'</b><br>動き <b>'+d.anims.length+'</b>'
     +(d.nanFrom&&d.nanFrom!==d.name?'<br>動きは <b>'+d.nanFrom+'</b> のものを借用':'')
+    +(d.unused?'<br><span style="color:#f0b429">ゲームが読み込まないモデル（置き忘れ）</span>':'')
     +(d.missing&&d.missing.length?'<br><span style="color:#e5736b">テクスチャ欠け: '+d.missing.join(', ')
       +'<br>（ディスクに入っていない。灰色で表示）</span>':'');
 }
@@ -872,9 +901,13 @@ async function start(files){
     if(!names.length) throw new Error('モデルが見つかりませんでした');
     const ms=$('model'); ms.innerHTML='';
     names.forEach(n=>{const o=document.createElement('option');o.value=n;
-      const lk=LIB.models[n].lack||[];
-      o.textContent=n+(lk.length?'（テクスチャ欠け）':''); ms.appendChild(o)});
-    ms.value=names.includes('ENZO')?'ENZO':names[0];
+      const mm=LIB.models[n], tag=[];
+      if(mm.unused) tag.push('未使用');
+      if((mm.lack||[]).length) tag.push('テクスチャ欠け');
+      o.textContent=n+(tag.length?'（'+tag.join('・')+'）':''); ms.appendChild(o)});
+    // 既定は実際に使われるモデルから選ぶ
+    const want=['ENZOGUN','BOBGUN','ENZOCAN','BOBCANON'].find(n=>names.includes(n)&&!LIB.models[n].unused);
+    ms.value=want||names.find(n=>!LIB.models[n].unused)||names[0];
     ms.onchange=()=>pick(ms.value);
     $('discName').textContent=(files[0]&&files[0].name)||'';
     $('intro').style.display='none';

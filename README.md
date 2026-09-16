@@ -97,6 +97,15 @@ PlayStation 版『ReBoot』（SLUS-00274）のディスクイメージを読み�
 
 `GBINBOD` だけは関節9で一致するものが無く、動きが付かない。
 
+## 使われていないモデル
+
+ステージのプログラム `LEVELA.OVL` に **読み込むモデルのファイル名が全部書いてある**
+（`ANIMATE\bobcanon.tom` の形）。ここに無いものは一覧で「未使用」と出る。
+
+`BOB` `BOB2` `ENZO` `CADDIE` `GBINBOD` `TENTACLE` `ZBINOML` の7体。
+ゲームが操作するのは武器を持った `BOBGUN` / `BOBCANON` / `ENZOGUN` / `ENZOCAN` の方。
+`ZBINOML` と `GBINBOD` は関節表も他と食い違っていて、まともな姿勢にならない。
+
 ## テクスチャが欠けているモデル
 
 `BOB` `CIVIL` `CLASH` `DOTCANON` `GBINBOD` `RBINOM` は、モデルが指しているテクスチャ名が
