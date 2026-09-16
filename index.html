@@ -402,23 +402,37 @@ function parseNan(d,njoint){
 
 function parsePsh(d){
   const v=dv(d), U=o=>v.getUint32(o,true), H=o=>v.getUint16(o,true);
+  // CLUT の塊をファイル全体から拾う（画像の直後とは限らない）
+  const cluts=[];
+  for(let o=0;o+16<=d.length;o+=4){
+    if((U(o)&0xff)!==0x23) continue;
+    const w=H(o+4), h=H(o+6);
+    if(h!==1||(w!==16&&w!==256)) continue;
+    const vy=U(o+12)>>>16;
+    if(vy<240||vy>511) continue;
+    if(o+16+w*2>d.length) continue;
+    cluts.push(o);
+  }
   const n=U(8), out={};
   for(let k=0;k<n;k++){
-    let nm=''; for(let i=0;i<4;i++) nm+=String.fromCharCode(d[0x10+8*k+i]);
+    let nm=''; for(let i2=0;i2<4;i2++) nm+=String.fromCharCode(d[0x10+8*k+i2]);
     const o=U(0x14+8*k);
     if(o+16>d.length) continue;
     const flag=U(o), w=H(o+4), h=H(o+6), pos=U(o+12);
-    let nb=(flag>>>16)*256; if(!nb) nb=w*h>>1;
-    const bpp=(w*h&&nb>=w*h)?8:4;
+    if((flag&0xff)!==0x40||!w||!h) continue;
+    // 大きさの欄は256バイト単位の切り捨て。色の深さの判定にだけ使う
+    const field=(flag>>>16)*256;
+    const bpp=(w*h&&field>=w*h)?8:4;
+    const nb=(w*h*bpp)>>3;
     const px=d.subarray(o+16,o+16+nb);
-    let clut=null; const c=o+16+nb;
-    if(c+16<=d.length){
-      const cf=U(c)&0xffff, cw=H(c+4), ch=H(c+6);
-      if((cf===0x23||cw===16||cw===256)&&c+16+2*cw*ch<=d.length){
-        clut=[]; for(let i=0;i<cw*ch;i++) clut.push(H(c+16+2*i));
-      }
+    let clut=null;
+    let lo=0,hi=cluts.length;
+    while(lo<hi){ const m=(lo+hi)>>1; if(cluts[m]<=o) lo=m+1; else hi=m }
+    if(lo<cluts.length){
+      const c=cluts[lo], cw=H(c+4);
+      clut=[]; for(let i2=0;i2<cw;i2++) clut.push(H(c+16+2*i2));
     }
-    out[nm]={w,h,bpp,px,clut,vram:[pos&0xffff,pos>>>16]};
+    out[nm]={w:w,h:h,bpp:bpp,px:px,clut:clut,vram:[pos&0xffff,pos>>>16]};
   }
   return out;
 }
