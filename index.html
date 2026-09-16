@@ -654,7 +654,7 @@ const U={proj:gl.getUniformLocation(prog,'uProj'),view:gl.getUniformLocation(pro
          bone:gl.getUniformLocation(prog,'uBone')};
 
 function persp(f,a,n,fa){const t=1/Math.tan(f/2);return new Float32Array(
-  [t/a,0,0,0, 0,t,0,0, 0,0,(fa+n)/(n-fa),-1, 0,0,2*fa*n/(n-fa),0])}
+  [-t/a,0,0,0, 0,t,0,0, 0,0,(fa+n)/(n-fa),-1, 0,0,2*fa*n/(n-fa),0])}
 const sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
 const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
 const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
@@ -674,7 +674,8 @@ function m3mul(a,b){const o=new Array(9);
 function m3v(a,v){return [a[0]*v[0]+a[3]*v[1]+a[6]*v[2], a[1]*v[0]+a[4]*v[1]+a[7]*v[2], a[2]*v[0]+a[5]*v[1]+a[8]*v[2]]}
 
 let M=null, mesh=null, tex=null;
-const state={yaw:0.5,pitch:0.15,dist:2.6,playing:true,anim:0,frame:0,speed:1,t:0};
+const FRONT=Math.PI+0.5;   // キャラの正面から見る向き
+const state={yaw:FRONT,pitch:0.15,dist:2.6,playing:true,anim:0,frame:0,speed:1,t:0};
 
 function poseAt(anim){
   if(!anim||!anim.poses.length) return M.joints.map(()=>[1,0,0,0]);
@@ -777,7 +778,7 @@ addEventListener('pointerup',()=>drag=null);
 cv.addEventListener('wheel',e=>{e.preventDefault();
   state.dist=Math.max(0.6,Math.min(9,state.dist*(1+e.deltaY*0.0012)))},{passive:false});
 $('play').onclick=()=>{state.playing=!state.playing;$('play').textContent=state.playing?'停止':'再生'};
-$('reset').onclick=()=>{state.yaw=0.5;state.pitch=0.15;state.dist=2.6};
+$('reset').onclick=()=>{state.yaw=FRONT;state.pitch=0.15;state.dist=2.6};
 $('frame').oninput=e=>{state.playing=false;$('play').textContent='再生';state.frame=+e.target.value};
 $('speed').oninput=e=>{state.speed=+e.target.value/100;$('spd').textContent=state.speed.toFixed(1)+'×'};
 $('anim').onchange=e=>setAnim(+e.target.value);
@@ -804,6 +805,9 @@ function frame(ts){
   resize();
   gl.clearColor(0.067,0.075,0.102,1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
   gl.enable(gl.DEPTH_TEST);
+  // 裏を向いた面は描かない（外向き＝反時計回り）。線画のときは全部出す
+  if($('wire').checked) gl.disable(gl.CULL_FACE);
+  else { gl.enable(gl.CULL_FACE); gl.frontFace(gl.CW); gl.cullFace(gl.BACK) }
   const s=M.scale, c=M.center||[0,0,0];
   const eye=[Math.sin(state.yaw)*Math.cos(state.pitch),-Math.sin(state.pitch),Math.cos(state.yaw)*Math.cos(state.pitch)]
     .map((v,i)=>v*s*state.dist+c[i]);
