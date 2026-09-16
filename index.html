@@ -11,6 +11,8 @@
     --accent:#6fd3c7; --accent2:#f0b429; --warn:#e5736b;
   }
   *{box-sizing:border-box}
+  [hidden]{display:none}
+  html,body,button,input,select,label{touch-action:manipulation}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);
     font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
     overscroll-behavior:none;-webkit-text-size-adjust:100%}
@@ -52,14 +54,72 @@
   .meta{font-size:11px;color:var(--dim);line-height:1.75;border-top:1px solid var(--line);padding-top:10px}
   .meta b{color:var(--fg);font-weight:600}
   .toggle{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--dim);cursor:pointer;margin:0}
-  #hint{position:absolute;left:12px;bottom:10px;font-size:11px;color:#69707d;pointer-events:none}
+  .bgmrow{display:flex;gap:8px;align-items:center}
+  .bgmrow select{flex:1;min-width:0}
+  .bgmrow input{width:88px;accent-color:var(--accent)}
+  #bgbox{display:flex;gap:6px;flex-wrap:wrap}
+  #bgbox button{width:26px;height:26px;border-radius:50%;border:1px solid var(--line);
+    padding:0;cursor:pointer}
+  #bgbox button[aria-pressed=true]{outline:2px solid var(--accent);outline-offset:1px}
+  #hint{position:absolute;left:12px;right:12px;bottom:10px;font-size:11px;color:#69707d;pointer-events:none}
   #busy{position:absolute;inset:0;display:none;place-items:center;background:rgba(17,19,26,.82);
     font-size:13px;color:var(--accent2)}
   #busy.on{display:grid}
+  /* --- 保存できたときの画面 --- */
+  #done{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.6);
+    display:flex;align-items:center;justify-content:center;padding:16px}
+  #done[hidden]{display:none}
+  #done .box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;
+    max-width:min(92vw,420px);width:100%;display:flex;flex-direction:column;gap:10px}
+  #donePv{background:repeating-conic-gradient(#33383f 0 25%,#262a32 0 50%) 0 0/16px 16px;
+    border-radius:8px;display:flex;justify-content:center;max-height:50vh;overflow:hidden}
+  #donePv>*{max-width:100%;max-height:50vh;object-fit:contain}
+  #done p{margin:0;font-size:12px;color:var(--dim);line-height:1.7}
+  #done .drow{display:flex;gap:8px}
+  #done .drow>*{flex:1;text-align:center;padding:12px;border-radius:10px;font-size:14px;
+    border:0;cursor:pointer;background:var(--accent);color:#0c1116;font-weight:600;
+    text-decoration:none;font-family:inherit}
+  #done .sub{background:#2b303a;color:var(--fg);font-weight:400}
+  #tabbar,.grip{display:none}
   @media (max-width:760px){
-    #app.on{flex-direction:column}
-    #side{width:auto;border-left:0;border-top:1px solid var(--line);max-height:46%}
+    #app.on{display:block;position:relative}
+    #view{position:absolute;inset:0;bottom:calc(58px + env(safe-area-inset-bottom))}
     #hint{display:none}
+    /* 下のタブ */
+    #tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:30;
+      height:calc(58px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);
+      background:var(--panel);border-top:1px solid var(--line)}
+    #tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:3px;font-size:10.5px;color:var(--dim);background:none;border:0;cursor:pointer;
+      -webkit-tap-highlight-color:transparent}
+    #tabbar .ic{font-size:19px;line-height:1}
+    #tabbar button[aria-pressed=true]{color:var(--accent);font-weight:600}
+    /* 操作欄を下から出るシートにする */
+    #side{position:fixed;left:0;right:0;bottom:calc(58px + env(safe-area-inset-bottom));z-index:25;
+      width:auto;max-height:54dvh;border-left:0;border-radius:16px 16px 0 0;padding:6px 16px 16px;
+      box-shadow:0 -10px 30px rgba(0,0,0,.45);overscroll-behavior:contain}
+    #side:not(.open){display:none}
+    #sideHead{display:none}
+    #side>[data-tab]{display:none}
+    #side[data-tab=chara]>[data-tab=chara],#side[data-tab=move]>[data-tab=move],
+    #side[data-tab=look]>[data-tab=look],#side[data-tab=save]>[data-tab=save]{display:block}
+    #side[data-tab=chara]>.row[data-tab=chara],#side[data-tab=move]>.row[data-tab=move],
+    #side[data-tab=look]>.row[data-tab=look],#side[data-tab=save]>.row[data-tab=save]{display:flex}
+    #side>[data-tab][hidden]{display:none}
+    .grip{display:block;position:sticky;top:0;margin:0 auto 2px;width:40px;height:5px;
+      border-radius:3px;background:var(--line);flex:none}
+    label{font-size:12px}
+    select,.btn{font-size:15px;padding:11px 10px}
+    .toggle{font-size:14px}
+    #bgbox button{width:36px;height:36px}
+    /* 再生バーは画面の下に浮かせる */
+    #view #playRow{position:absolute;left:10px;right:10px;bottom:10px;display:flex;gap:8px;
+      margin:0;padding:8px;border-radius:14px;background:rgba(17,19,26,.72);
+      -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+    #view #playRow .btn{height:42px;display:flex;align-items:center;justify-content:center;
+      border-radius:10px;font-size:15px}
+    #view #frameRow{position:absolute;left:10px;right:10px;bottom:70px;margin:0}
+    #view #frameRow label{display:none}
   }
 </style>
 </head>
@@ -84,35 +144,75 @@
 <div id="app">
   <div id="view">
     <canvas id="gl"></canvas>
-    <div id="hint">ドラッグで回転・ホイールで拡大</div>
+    <div id="hint">ドラッグで回転 ・ 右ドラッグ／Shift＋ドラッグで移動 ・ ホイールで拡大 ・ ダブルクリックで元に戻す</div>
     <div id="busy">読み込み中…</div>
   </div>
   <div id="side">
-    <div>
+    <div class="grip" aria-hidden="true"></div>
+    <div id="sideHead">
       <h2>REBOOT モデルビューア</h2>
       <p class="sub" id="discName"></p>
     </div>
-    <div><label>キャラクター</label><select id="model"></select></div>
-    <div><label>動き</label><select id="anim"></select></div>
-    <div class="row">
-      <button class="btn" id="play">停止</button>
-      <button class="btn" id="reset">向きを戻す</button>
+    <div data-tab="chara"><label>キャラクター</label><select id="model"></select></div>
+    <div data-tab="move"><label>動き</label><select id="anim"></select></div>
+    <div data-tab="move" id="playRow" class="row">
+      <button class="btn" id="prev" title="前のコマ（←）">◀</button>
+      <button class="btn" id="play" style="flex:2">停止</button>
+      <button class="btn" id="next" title="次のコマ（→）">▶</button>
     </div>
-    <div>
+    <div data-tab="move" id="frameRow">
       <label>コマ <span id="fno"></span></label>
       <input type="range" id="frame" min="0" max="0" value="0">
     </div>
-    <div>
+    <div data-tab="move">
       <label>速さ <span id="spd">1.0×</span></label>
       <input type="range" id="speed" min="10" max="300" value="100">
     </div>
-    <div class="row">
+    <div data-tab="look">
+      <label>背景</label>
+      <div id="bgbox"></div>
+    </div>
+    <div data-tab="look" class="row">
       <label class="toggle"><input type="checkbox" id="wire"> 輪郭だけ</label>
       <label class="toggle"><input type="checkbox" id="smooth"> なめらか</label>
     </div>
-    <div class="meta" id="meta"></div>
+    <div data-tab="look" id="bgmBox" hidden>
+      <label>BGM</label>
+      <div class="bgmrow">
+        <select id="bgm"><option value="-1">なし</option></select>
+        <input type="range" id="bgmVol" min="0" max="1" step="0.05" value="0.6" aria-label="音量">
+      </div>
+    </div>
+    <div data-tab="save" class="row">
+      <button class="btn" id="reset">視点を戻す</button>
+      <button class="btn" id="shot">スクショを保存</button>
+    </div>
+    <div data-tab="save" class="row">
+      <button class="btn" id="mp4">動画で保存</button>
+      <button class="btn" id="apng">アニメPNG</button>
+    </div>
+    <div data-tab="save" class="row">
+      <label class="toggle"><input type="checkbox" id="clearbg"> 背景なし</label>
+      <label class="toggle"><input type="checkbox" id="crop"> 切り抜き</label>
+    </div>
+    <div data-tab="save" id="rec" style="font-size:11px;color:var(--accent2);min-height:1.3em"></div>
+    <div data-tab="chara" class="meta" id="meta"></div>
   </div>
 </div>
+
+<nav id="tabbar" aria-label="操作">
+  <button data-tab="chara"><span class="ic">👤</span>キャラ</button>
+  <button data-tab="move"><span class="ic">🎬</span>動き</button>
+  <button data-tab="look"><span class="ic">🎨</span>見た目</button>
+  <button data-tab="save"><span class="ic">💾</span>保存</button>
+</nav>
+
+<div id="done" hidden><div class="box">
+  <div id="donePv"></div>
+  <p id="doneInfo"></p>
+  <div class="drow"><button id="doneShare">保存する</button><a id="doneDl" class="sub" download>ダウンロード</a></div>
+  <div class="drow"><button id="doneClose" class="sub">閉じる</button></div>
+</div></div>
 
 <input type="file" id="file" multiple accept=".chd,.bin,.iso,.img" style="display:none">
 
@@ -538,7 +638,16 @@ async function openDisc(fileList){
   const cnf=new TextDecoder().decode(await disc.read(root['SYSTEM.CNF'].lba,1));
   if(!/SLUS_002\.74/i.test(cnf)) throw new Error('ReBoot（SLUS-00274）のディスクではないようです');
   if(!root['ANIMATE']) throw new Error('ANIMATE フォルダが見つかりません');
-  return {disc,root};
+  // BGM: MOVIES/MUSIC.WXA に8曲が1セクタずつ交互に入っている（生セクタが読めるときだけ）
+  let bgmFile=null;
+  try{
+    if(root['MOVIES'] && await disc.readRaw(16)){
+      const mv=await readDir(disc,root['MOVIES'].lba,root['MOVIES'].size);
+      const e=mv['MUSIC.WXA'];
+      if(e) bgmFile={lba:e.lba,sectors:Math.ceil(e.size/2048)};
+    }
+  }catch(_){}
+  return {disc,root,bgmFile,readRaw:lba=>disc.readRaw(lba)};
 }
 
 /* 起動時: モデル一覧と、テクスチャ束の目次だけ集める */
@@ -668,7 +777,7 @@ async function loadOne(src,lib,name,onProgress){
 // ============================================================
 const $=s=>document.getElementById(s);
 const cv=$('gl');
-const gl=cv.getContext('webgl',{antialias:true,alpha:false});
+const gl=cv.getContext('webgl',{antialias:true,alpha:true,preserveDrawingBuffer:true});
 
 const VS=`
 attribute vec3 aPos; attribute vec2 aUv; attribute float aBone;
@@ -725,7 +834,7 @@ function m3v(a,v){return [a[0]*v[0]+a[3]*v[1]+a[6]*v[2], a[1]*v[0]+a[4]*v[1]+a[7
 
 let M=null, mesh=null, tex=null;
 const FRONT=Math.PI+0.5;   // キャラの正面から見る向き
-const state={yaw:FRONT,pitch:0.15,dist:2.6,playing:true,anim:0,frame:0,speed:1,t:0};
+const state={yaw:FRONT,pitch:0.15,dist:2.6,pan:[0,0,0],playing:true,anim:0,frame:0,speed:1,t:0};
 
 function poseAt(anim){
   if(!anim||!anim.poses.length) return M.joints.map(()=>[1,0,0,0]);
@@ -828,21 +937,214 @@ function setAnim(i){
   if(M.center) measure();
 }
 
-let drag=null;
-cv.addEventListener('pointerdown',e=>{drag=[e.clientX,e.clientY];cv.setPointerCapture(e.pointerId)});
-cv.addEventListener('pointermove',e=>{if(!drag)return;
-  state.yaw+=(e.clientX-drag[0])*0.01;
-  state.pitch=Math.max(-1.3,Math.min(1.3,state.pitch+(e.clientY-drag[1])*0.01));
-  drag=[e.clientX,e.clientY]});
-addEventListener('pointerup',()=>drag=null);
-cv.addEventListener('wheel',e=>{e.preventDefault();
-  state.dist=Math.max(0.6,Math.min(9,state.dist*(1+e.deltaY*0.0012)))},{passive:false});
-$('play').onclick=()=>{state.playing=!state.playing;$('play').textContent=state.playing?'停止':'再生'};
-$('reset').onclick=()=>{state.yaw=FRONT;state.pitch=0.15;state.dist=2.6};
-$('frame').oninput=e=>{state.playing=false;$('play').textContent='再生';state.frame=+e.target.value};
-$('speed').oninput=e=>{state.speed=+e.target.value/100;$('spd').textContent=state.speed.toFixed(1)+'×'};
+/* ---- 背景 ---- */
+const BG=[{n:'暗い',c:[0.067,0.075,0.102]},{n:'黒',c:[0,0,0]},{n:'灰',c:[0.42,0.43,0.46]},
+          {n:'白',c:[1,1,1]},{n:'空',c:[0.45,0.66,0.86]},{n:'夕焼け',c:[0.86,0.46,0.3]},
+          {n:'夜',c:[0.05,0.06,0.13]},{n:'グリーンバック',c:[0,0.72,0.2]}];
+let bgIndex=0;
+function setBG(i){
+  bgIndex=Math.max(0,Math.min(BG.length-1,i|0));
+  [...$('bgbox').children].forEach((b,k)=>b.setAttribute('aria-pressed',String(k===bgIndex)));
+  try{ localStorage.setItem('rbbg',String(bgIndex)) }catch(e){}
+}
+BG.forEach((p,i)=>{
+  const b=document.createElement('button');
+  b.title=p.n; b.setAttribute('aria-label','背景: '+p.n);
+  b.style.background='rgb('+p.c.map(v=>Math.round(v*255)).join(',')+')';
+  b.onclick=()=>setBG(i);
+  $('bgbox').append(b);
+});
+try{ setBG(+localStorage.getItem('rbbg')||0) }catch(e){ setBG(0) }
+
+/* ---- カメラ ---- */
+function camAxes(){
+  const p=state.pitch, y=state.yaw;
+  const dir=[Math.sin(y)*Math.cos(p),-Math.sin(p),Math.cos(y)*Math.cos(p)];   // 注視点→目
+  const up=[0,-1,0];
+  const x=nrm(cross(up,dir)), yv=cross(dir,x);
+  // 投影で画面Xを反転しているので、画面の右は -x
+  return {dir:dir,right:[-x[0],-x[1],-x[2]],up:yv};
+}
+function panBy(dx,dy){
+  if(!M) return;
+  const a=camAxes();
+  const k=2*Math.tan(0.45)*state.dist*M.scale/Math.max(1,cv.clientHeight);
+  for(let i=0;i<3;i++) state.pan[i]-=(a.right[i]*dx-a.up[i]*dy)*k;
+}
+function zoomAt(f,cx,cy){
+  const nd=Math.max(0.3,Math.min(9,state.dist*f)), real=nd/state.dist;
+  panBy(-(cx-cv.clientWidth/2)*(1-real),-(cy-cv.clientHeight/2)*(1-real));
+  state.dist=nd;
+}
+function resetView(){ state.yaw=FRONT; state.pitch=0.15; state.dist=2.6; state.pan=[0,0,0] }
+
+/* ---- 操作 ---- */
+const pointers=new Map(); let dragMode=null;
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+cv.addEventListener('pointerdown',e=>{
+  try{ cv.setPointerCapture(e.pointerId) }catch(err){}
+  pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  dragMode = pointers.size>=2 ? 'pinch'
+           : (e.button===2||e.button===1||e.shiftKey) ? 'pan' : 'rotate';
+});
+cv.addEventListener('pointermove',e=>{
+  const p=pointers.get(e.pointerId); if(!p) return;
+  if(dragMode==='pinch'&&pointers.size>=2){
+    const v=[...pointers.values()];
+    const b0=Math.hypot(v[0].x-v[1].x,v[0].y-v[1].y), mx0=(v[0].x+v[1].x)/2, my0=(v[0].y+v[1].y)/2;
+    p.x=e.clientX; p.y=e.clientY;
+    const w=[...pointers.values()];
+    const b1=Math.hypot(w[0].x-w[1].x,w[0].y-w[1].y), mx1=(w[0].x+w[1].x)/2, my1=(w[0].y+w[1].y)/2;
+    panBy(mx1-mx0,my1-my0);
+    const r=cv.getBoundingClientRect();
+    if(b0>0&&b1>0) zoomAt(b0/b1,mx1-r.left,my1-r.top);
+  }else{
+    const dx=e.clientX-p.x, dy=e.clientY-p.y; p.x=e.clientX; p.y=e.clientY;
+    if(dragMode==='pan') panBy(dx,dy);
+    else if(dragMode==='rotate'){
+      state.yaw+=dx*0.01;
+      state.pitch=Math.max(-1.3,Math.min(1.3,state.pitch+dy*0.01));
+    }
+  }
+});
+for(const t of ['pointerup','pointercancel']) cv.addEventListener(t,e=>{
+  pointers.delete(e.pointerId);
+  dragMode = pointers.size===0 ? null : (dragMode==='pinch'?'pan':dragMode);
+});
+cv.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const r=cv.getBoundingClientRect();
+  zoomAt(Math.exp(e.deltaY*(e.ctrlKey?0.01:0.0012)),e.clientX-r.left,e.clientY-r.top);
+},{passive:false});
+cv.addEventListener('dblclick',resetView);
+// iPhone では dblclick が来ないのでダブルタップを見る
+let lastTap={t:0,x:0,y:0}, tapStart=null;
+cv.addEventListener('pointerdown',e=>{ if(e.pointerType==='touch')
+  tapStart={t:performance.now(),x:e.clientX,y:e.clientY,multi:pointers.size>1} },true);
+cv.addEventListener('pointerup',e=>{
+  if(e.pointerType!=='touch'||!tapStart) return;
+  const now=performance.now(), moved=Math.hypot(e.clientX-tapStart.x,e.clientY-tapStart.y);
+  if(!tapStart.multi&&moved<10&&now-tapStart.t<250){
+    if(now-lastTap.t<350&&Math.hypot(e.clientX-lastTap.x,e.clientY-lastTap.y)<40){ resetView(); lastTap.t=0 }
+    else lastTap={t:now,x:e.clientX,y:e.clientY};
+  }
+  tapStart=null;
+});
+if(matchMedia('(pointer:coarse)').matches)
+  $('hint').textContent='1本指で回転・2本指で移動と拡大・ダブルタップで戻す';
+
+function setPlaying(v){ state.playing=v; $('play').textContent=v?'停止':'再生' }
+function step(d){
+  const a=M&&M.anims[state.anim];
+  if(!a||!a.keys.length) return;
+  setPlaying(false);
+  state.frame=(state.frame+d+a.keys.length)%a.keys.length; state.t=0;
+  $('frame').value=state.frame;
+}
+$('play').onclick=()=>setPlaying(!state.playing);
+$('prev').onclick=()=>step(-1);
+$('next').onclick=()=>step(1);
+$('reset').onclick=resetView;
+$('frame').oninput=e=>{ setPlaying(false); state.frame=+e.target.value; state.t=0 };
+$('speed').oninput=e=>{ state.speed=+e.target.value/100; $('spd').textContent=state.speed.toFixed(1)+'×' };
 $('anim').onchange=e=>setAnim(+e.target.value);
 $('smooth').onchange=setFilter;
+$('shot').onclick=saveShot;
+$('mp4').onclick=()=>record('video');
+$('apng').onclick=()=>record('apng');
+addEventListener('keydown',e=>{
+  if(/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
+  if(e.key==='ArrowLeft'){ step(-1); e.preventDefault() }
+  else if(e.key==='ArrowRight'){ step(1); e.preventDefault() }
+  else if(e.key===' '){ setPlaying(!state.playing); e.preventDefault() }
+  else if(e.key==='r'||e.key==='R'){ resetView() }
+});
+
+/* ---- スクショ ---- */
+function modelBox(){
+  // いまの姿勢の頂点を画面に投影して、キャラの入る範囲を出す
+  const B=buildBones(poseAt(M.anims[state.anim]));
+  const s=M.scale, c=[M.center[0]+state.pan[0],M.center[1]+state.pan[1],M.center[2]+state.pan[2]];
+  const a=camAxes();
+  const eye=[a.dir[0]*s*state.dist+c[0],a.dir[1]*s*state.dist+c[1],a.dir[2]*s*state.dist+c[2]];
+  const proj=persp(0.9,cv.width/cv.height,s*0.05,s*40), view=lookAt(eye,c,[0,-1,0]);
+  const mvp=(x,y,z)=>{
+    const e=[0,0,0,0];
+    for(let i=0;i<4;i++){
+      let v=0;
+      for(let k=0;k<4;k++){
+        const w=[x,y,z,1][k];
+        let t=0; for(let j=0;j<4;j++) t+=proj[j*4+i]*view[k*4+j];
+        v+=t*w;
+      }
+      e[i]=v;
+    }
+    return e;
+  };
+  let lo=[1e9,1e9], hi=[-1e9,-1e9];
+  for(let i=0;i<M.bone.length;i++){
+    const b=M.bone[i]*16, x=M.pos[i*3],y=M.pos[i*3+1],z=M.pos[i*3+2];
+    const wx=B[b]*x+B[b+4]*y+B[b+8]*z+B[b+12];
+    const wy=B[b+1]*x+B[b+5]*y+B[b+9]*z+B[b+13];
+    const wz=B[b+2]*x+B[b+6]*y+B[b+10]*z+B[b+14];
+    const e=mvp(wx,wy,wz);
+    if(e[3]<=0) continue;
+    const sx=(e[0]/e[3]*0.5+0.5)*cv.width, sy=(0.5-e[1]/e[3]*0.5)*cv.height;
+    lo[0]=Math.min(lo[0],sx); lo[1]=Math.min(lo[1],sy);
+    hi[0]=Math.max(hi[0],sx); hi[1]=Math.max(hi[1],sy);
+  }
+  const pad=8;
+  return {x:Math.max(0,Math.floor(lo[0]-pad)),y:Math.max(0,Math.floor(lo[1]-pad)),
+          w:Math.min(cv.width,Math.ceil(hi[0]+pad))-Math.max(0,Math.floor(lo[0]-pad)),
+          h:Math.min(cv.height,Math.ceil(hi[1]+pad))-Math.max(0,Math.floor(lo[1]-pad))};
+}
+async function saveShot(){
+  if(!M) return;
+  drawScene();
+  let src=cv, box={x:0,y:0,w:cv.width,h:cv.height};
+  if($('crop').checked) box=modelBox();
+  const c2=document.createElement('canvas'); c2.width=box.w; c2.height=box.h;
+  const g=c2.getContext('2d');
+  g.drawImage(cv,box.x,box.y,box.w,box.h,0,0,box.w,box.h);
+  const blob=await new Promise(r=>c2.toBlob(r,'image/png'));
+  const fn=(M.name||'reboot')+'_'+(M.anims[state.anim]?M.anims[state.anim].name:'pose')+'_'+(state.frame+1)+'.png';
+  await deliver(blob,fn);
+}
+
+/* ---- 保存（スマホは共有シート・PCはダウンロード） ---- */
+function canShareFile(file){
+  return matchMedia('(pointer:coarse)').matches && navigator.canShare && navigator.canShare({files:[file]});
+}
+async function deliver(blob,fn){
+  const file=new File([blob],fn,{type:blob.type||'application/octet-stream'});
+  if(canShareFile(file)){
+    try{ await navigator.share({files:[file]}); return true }
+    catch(err){ if(err.name==='AbortError') return true }
+  }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fn; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),8000);
+  return false;
+}
+function showDone(blob,fn,info){
+  const box=$('done'), pv=$('donePv');
+  pv.textContent=''; if(box.dataset.url){ URL.revokeObjectURL(box.dataset.url); box.dataset.url='' }
+  const url=URL.createObjectURL(blob); box.dataset.url=url;
+  const el=document.createElement(/\.(mp4|webm)$/.test(fn)?'video':'img');
+  el.src=url; if(el.tagName==='VIDEO'){ el.controls=true; el.loop=true; el.playsInline=true; el.muted=true; el.play().catch(()=>{}) }
+  pv.appendChild(el);
+  $('doneInfo').textContent=fn+'（'+(blob.size/1048576).toFixed(1)+'MB）'+(info?' / '+info:'');
+  const file=new File([blob],fn,{type:blob.type||'application/octet-stream'});
+  const sh=$('doneShare');
+  sh.hidden=!(navigator.canShare&&navigator.canShare({files:[file]}));
+  sh.onclick=async()=>{ try{ await navigator.share({files:[file]}) }
+    catch(err){ if(err.name!=='AbortError') $('doneInfo').textContent='共有できませんでした: '+err.message } };
+  const dl=$('doneDl'); dl.href=url; dl.download=fn;
+  box.hidden=false;
+}
+function closeDone(){
+  const box=$('done'); box.hidden=true; $('donePv').textContent='';
+  if(box.dataset.url){ URL.revokeObjectURL(box.dataset.url); box.dataset.url='' }
+}
 
 function resize(){
   const r=cv.getBoundingClientRect(), dpr=Math.min(2,devicePixelRatio||1);
@@ -851,6 +1153,30 @@ function resize(){
   gl.viewport(0,0,cv.width,cv.height);
 }
 let last=0;
+function drawScene(){
+  if(!M||!mesh) return;
+  resize();
+  const bg=BG[bgIndex].c, clear=$('clearbg').checked;
+  gl.clearColor(bg[0],bg[1],bg[2],clear?0:1);
+  gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST);
+  const w=$('wire').checked;
+  if(w) gl.disable(gl.CULL_FACE);
+  else { gl.enable(gl.CULL_FACE); gl.frontFace(gl.CW); gl.cullFace(gl.BACK) }
+  const s=M.scale;
+  const c=[M.center[0]+state.pan[0],M.center[1]+state.pan[1],M.center[2]+state.pan[2]];
+  const a=camAxes();
+  const eye=[a.dir[0]*s*state.dist+c[0],a.dir[1]*s*state.dist+c[1],a.dir[2]*s*state.dist+c[2]];
+  gl.uniformMatrix4fv(U.proj,false,persp(0.9,cv.width/cv.height,s*0.05,s*40));
+  gl.uniformMatrix4fv(U.view,false,lookAt(eye,c,[0,-1,0]));
+  gl.uniformMatrix4fv(U.bone,false,buildBones(poseAt(M.anims[state.anim])));
+  gl.uniform1f(U.flat,w?1:0);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,tex); gl.uniform1i(U.tex,0);
+  gl.bindBuffer(gl.ARRAY_BUFFER,w?mesh.lp:mesh.p); gl.enableVertexAttribArray(A.pos); gl.vertexAttribPointer(A.pos,3,gl.FLOAT,false,0,0);
+  gl.bindBuffer(gl.ARRAY_BUFFER,w?mesh.lu:mesh.u); gl.enableVertexAttribArray(A.uv);  gl.vertexAttribPointer(A.uv,2,gl.FLOAT,false,0,0);
+  gl.bindBuffer(gl.ARRAY_BUFFER,w?mesh.lb:mesh.b); gl.enableVertexAttribArray(A.bone);gl.vertexAttribPointer(A.bone,1,gl.FLOAT,false,0,0);
+  gl.drawArrays(w?gl.LINES:gl.TRIANGLES,0,w?mesh.ln:mesh.n);
+}
 function frame(ts){
   requestAnimationFrame(frame);
   if(!M||!mesh) return;
@@ -862,25 +1188,7 @@ function frame(ts){
       $('frame').value=state.frame }
   }
   $('fno').textContent=(a&&a.keys.length)?(state.frame+1)+' / '+a.keys.length:'—';
-  resize();
-  gl.clearColor(0.067,0.075,0.102,1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
-  gl.enable(gl.DEPTH_TEST);
-  // 裏を向いた面は描かない（外向き＝反時計回り）。線画のときは全部出す
-  if($('wire').checked) gl.disable(gl.CULL_FACE);
-  else { gl.enable(gl.CULL_FACE); gl.frontFace(gl.CW); gl.cullFace(gl.BACK) }
-  const s=M.scale, c=M.center||[0,0,0];
-  const eye=[Math.sin(state.yaw)*Math.cos(state.pitch),-Math.sin(state.pitch),Math.cos(state.yaw)*Math.cos(state.pitch)]
-    .map((v,i)=>v*s*state.dist+c[i]);
-  gl.uniformMatrix4fv(U.proj,false,persp(0.9,cv.width/cv.height,s*0.05,s*40));
-  gl.uniformMatrix4fv(U.view,false,lookAt(eye,c,[0,-1,0]));
-  gl.uniformMatrix4fv(U.bone,false,buildBones(poseAt(a)));
-  gl.uniform1f(U.flat,$('wire').checked?1:0);
-  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,tex); gl.uniform1i(U.tex,0);
-  const w=$('wire').checked;
-  gl.bindBuffer(gl.ARRAY_BUFFER,w?mesh.lp:mesh.p); gl.enableVertexAttribArray(A.pos); gl.vertexAttribPointer(A.pos,3,gl.FLOAT,false,0,0);
-  gl.bindBuffer(gl.ARRAY_BUFFER,w?mesh.lu:mesh.u); gl.enableVertexAttribArray(A.uv);  gl.vertexAttribPointer(A.uv,2,gl.FLOAT,false,0,0);
-  gl.bindBuffer(gl.ARRAY_BUFFER,w?mesh.lb:mesh.b); gl.enableVertexAttribArray(A.bone);gl.vertexAttribPointer(A.bone,1,gl.FLOAT,false,0,0);
-  gl.drawArrays(w?gl.LINES:gl.TRIANGLES,0,w?mesh.ln:mesh.n);
+  drawScene();
 }
 requestAnimationFrame(frame);
 
@@ -894,6 +1202,7 @@ const busy=t=>{const b=$('busy'); if(t){b.textContent=t;b.classList.add('on')} e
 async function start(files){
   try{
     say('ディスクを開いています…');
+    bgmStop();
     SRC=await openDisc(files);
     say('中身を調べています…');
     LIB=await scanDisc(SRC,(a,b)=>say('テクスチャの目次を読んでいます… '+a+' / '+b));
@@ -910,6 +1219,7 @@ async function start(files){
     ms.value=want||names.find(n=>!LIB.models[n].unused)||names[0];
     ms.onchange=()=>pick(ms.value);
     $('discName').textContent=(files[0]&&files[0].name)||'';
+    bgmSetup();
     $('intro').style.display='none';
     $('app').classList.add('on');
     await pick(ms.value);
@@ -934,6 +1244,248 @@ for(const ev of ['dragleave','drop']) drop.addEventListener(ev,e=>{e.preventDefa
 drop.addEventListener('drop',e=>{ if(e.dataTransfer.files.length) start(e.dataTransfer.files) });
 addEventListener('dragover',e=>e.preventDefault());
 addEventListener('drop',e=>e.preventDefault());
+
+/* ---- 動画 / アニメーションPNG ---- */
+const CRC_T=(()=>{ const t=new Uint32Array(256);
+  for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=c&1?0xedb88320^(c>>>1):c>>>1; t[n]=c>>>0 } return t })();
+function pngChunk(type,data){
+  const b=new Uint8Array(12+data.length), dv=new DataView(b.buffer);
+  dv.setUint32(0,data.length); for(let i=0;i<4;i++) b[4+i]=type.charCodeAt(i); b.set(data,8);
+  let c=0xffffffff; for(let i=4;i<8+data.length;i++) c=CRC_T[(c^b[i])&255]^(c>>>8);
+  dv.setUint32(8+data.length,(c^0xffffffff)>>>0); return b;
+}
+async function zlibRaw(u8){
+  return new Uint8Array(await new Response(new Blob([u8]).stream()
+    .pipeThrough(new CompressionStream('deflate'))).arrayBuffer());
+}
+const recMsg=t=>{ $('rec').textContent=t||'' };
+let recBusy=false;
+
+function unionBox(){
+  const a=M.anims[state.anim], n=(a&&a.keys.length)||1;
+  let lo=[1e9,1e9], hi=[-1e9,-1e9];
+  const keep=state.frame;
+  for(let f=0;f<n;f++){
+    state.frame=f;
+    const b=modelBox();
+    lo[0]=Math.min(lo[0],b.x); lo[1]=Math.min(lo[1],b.y);
+    hi[0]=Math.max(hi[0],b.x+b.w); hi[1]=Math.max(hi[1],b.y+b.h);
+  }
+  state.frame=keep;
+  return {x:Math.max(0,lo[0]|0),y:Math.max(0,lo[1]|0),
+          w:Math.min(cv.width,hi[0]|0)-Math.max(0,lo[0]|0),
+          h:Math.min(cv.height,hi[1]|0)-Math.max(0,lo[1]|0)};
+}
+
+async function record(fmt){
+  if(!M||recBusy) return;
+  const a=M.anims[state.anim];
+  if(!a||!a.keys.length){ recMsg('この動きはコマがありません'); return }
+  recBusy=true;
+  const keepFrame=state.frame, keepPlay=state.playing;
+  setPlaying(false);
+  try{
+    drawScene();
+    let r=$('crop').checked?unionBox():{x:0,y:0,w:cv.width-(cv.width%2),h:cv.height-(cv.height%2)};
+    const cap=fmt==='apng'?540:1080, sc=Math.min(1,cap/Math.max(r.w,r.h));
+    const ow=Math.max(2,Math.round(r.w*sc/2)*2), oh=Math.max(2,Math.round(r.h*sc/2)*2);
+    const out=document.createElement('canvas'); out.width=ow; out.height=oh;
+    const g=out.getContext('2d',{willReadFrequently:fmt==='apng'});
+    const clear=$('clearbg').checked;
+    const paint=f=>{
+      state.frame=f; drawScene();
+      g.clearRect(0,0,ow,oh);
+      if(!clear){ const c=BG[bgIndex].c;
+        g.fillStyle='rgb('+c.map(v=>Math.round(v*255)).join(',')+')'; g.fillRect(0,0,ow,oh) }
+      g.drawImage(cv,r.x,r.y,r.w,r.h,0,0,ow,oh);
+    };
+    const total=a.keys.length;
+    const blob = fmt==='video' ? await encVideo(out,paint,total) : await encApng(out,g,paint,total);
+    const base=(M.name||'reboot')+'_'+a.name;
+    const fn=base+(fmt==='apng'?'.png':(blob.type.includes('mp4')?'.mp4':'.webm'));
+    recMsg('');
+    showDone(blob,fn,total+'コマ');
+  }catch(err){ recMsg('失敗: '+(err.message||err)) }
+  finally{ recBusy=false; state.frame=keepFrame; setPlaying(keepPlay) }
+}
+
+async function encVideo(out,paint,total){
+  if(!window.MediaRecorder||!out.captureStream) throw new Error('このブラウザは動画の書き出しに対応していません');
+  const types=['video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+  const mime=types.find(t=>MediaRecorder.isTypeSupported(t));
+  if(!mime) throw new Error('使える動画形式がありません');
+  const stream=out.captureStream(0), track=stream.getVideoTracks()[0];
+  const mr=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:8e6}), chunks=[];
+  mr.ondataavailable=e=>{ if(e.data.size) chunks.push(e.data) };
+  const done=new Promise(res=>mr.onstop=res);
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  let started=false;
+  for(let f=0;f<total;f++){
+    paint(f);
+    if(!started){ mr.start(); started=true } else mr.resume();
+    if(track.requestFrame) track.requestFrame(); else if(stream.requestFrame) stream.requestFrame();
+    await wait(1000/30);
+    mr.pause();
+    if(f%5===0) recMsg('書き出し '+Math.round(f/total*100)+'%');
+  }
+  mr.resume(); await wait(1000/30); mr.stop(); await done;
+  const blob=new Blob(chunks,{type:mime.split(';')[0]});
+  if(blob.size<1000) throw new Error('このブラウザでは動画を作れませんでした（アニメPNGなら保存できるかもしれません）');
+  return blob;
+}
+
+async function encApng(out,g,paint,total){
+  if(!window.CompressionStream) throw new Error('このブラウザはアニメPNGの書き出しに対応していません');
+  const w=out.width, h=out.height;
+  const parts=[new Uint8Array([137,80,78,71,13,10,26,10])];
+  const u32=(...v)=>{ const b=new Uint8Array(v.length*4), dv=new DataView(b.buffer);
+    v.forEach((x,i)=>dv.setUint32(i*4,x)); return b };
+  const ihdr=new Uint8Array(13); ihdr.set(u32(w,h)); ihdr[8]=8; ihdr[9]=6;
+  parts.push(pngChunk('IHDR',ihdr));
+  parts.push(pngChunk('acTL',u32(total,0)));
+  const raw=new Uint8Array((w*4+1)*h);
+  let seq=0;
+  for(let f=0;f<total;f++){
+    paint(f);
+    const d=g.getImageData(0,0,w,h).data;
+    for(let y=0;y<h;y++){
+      const o=y*(w*4+1), s=y*w*4;
+      raw[o]=y?2:0;
+      if(y) for(let i=0;i<w*4;i++) raw[o+1+i]=(d[s+i]-d[s-w*4+i])&255;
+      else raw.set(d.subarray(0,w*4),o+1);
+    }
+    const fc=new Uint8Array(26); fc.set(u32(seq++,w,h,0,0));
+    const dv=new DataView(fc.buffer); dv.setUint16(20,1); dv.setUint16(22,30);
+    parts.push(pngChunk('fcTL',fc));
+    const z=await zlibRaw(raw);
+    if(f===0) parts.push(pngChunk('IDAT',z));
+    else { const fd=new Uint8Array(4+z.length); fd.set(u32(seq++)); fd.set(z,4); parts.push(pngChunk('fdAT',fd)) }
+    recMsg('書き出し '+Math.round((f+1)/total*100)+'%');
+    if(f%4===0) await new Promise(r=>setTimeout(r));
+  }
+  parts.push(pngChunk('IEND',new Uint8Array(0)));
+  return new Blob(parts,{type:'image/png'});
+}
+
+$('doneClose').onclick=closeDone;
+$('done').addEventListener('click',e=>{ if(e.target===$('done')) closeDone() });
+
+/* ---- スマホ: 下のタブと引き出しシート ---- */
+const MQ=matchMedia('(max-width:760px)');
+let sheetTab='';
+function openSheet(t){
+  const side=$('side');
+  if(sheetTab===t){ closeSheet(); return }
+  sheetTab=t; side.dataset.tab=t; side.classList.add('open');
+  for(const b of $('tabbar').children) b.setAttribute('aria-pressed',String(b.dataset.tab===t));
+  side.scrollTop=0;
+}
+function closeSheet(){
+  sheetTab=''; $('side').classList.remove('open');
+  for(const b of $('tabbar').children) b.setAttribute('aria-pressed','false');
+}
+for(const b of $('tabbar').children) b.onclick=()=>openSheet(b.dataset.tab);
+function applyLayout(){
+  const m=MQ.matches, view=$('view'), side=$('side');
+  if(m){ view.appendChild($('frameRow')); view.appendChild($('playRow')) }
+  else {
+    closeSheet(); side.removeAttribute('data-tab');
+    const anchor=side.querySelector('[data-tab=move]');   // 動きの選択欄のすぐ下に戻す
+    anchor.after($('playRow')); $('playRow').after($('frameRow'));
+  }
+  resize();
+}
+MQ.addEventListener('change',applyLayout);
+applyLayout();
+cv.addEventListener('pointerdown',()=>{ if(MQ.matches&&sheetTab) closeSheet() });
+
+// ============================================================
+//  BGM: XA-ADPCM
+//   MOVIES/MUSIC.WXA は 8曲を1セクタずつ交互に並べてある（曲 = セクタ位置 % 8）
+//   1セクタ = 18グループ × 4組 × 28サンプル = 2016フレーム、ステレオ 4bit 37800Hz
+// ============================================================
+const XA_K0=[0,60,115,98,122], XA_K1=[0,0,-52,-55,-60];
+function xaDecodeSector(b,hist,L,R,off){
+  for(let g=0;g<18;g++){
+    const o=24+g*128;
+    for(let u=0;u<8;u++){
+      const p=b[o+4+u], rng=p&15, flt=(p>>4)&7, ch=u&1, dst=ch?R:L, hh=hist[ch];
+      let h1=hh[0], h2=hh[1];
+      const k0=XA_K0[flt]||0, k1=XA_K1[flt]||0, base=off+(g*4+(u>>1))*28;
+      for(let i=0;i<28;i++){
+        let n=(b[o+16+i*4+(u>>1)]>>((u&1)*4))&15; if(n&8) n-=16;
+        let v=((n<<12)>>rng)+((h1*k0+h2*k1+32)>>6);
+        v=v<-32768?-32768:v>32767?32767:v; h2=h1; h1=v; dst[base+i]=v/32768;
+      }
+      hh[0]=h1; hh[1]=h2;
+    }
+  }
+}
+
+const bgm={ctx:null,gain:null,track:-1,timer:null,next:0,pos:0,hist:null,nodes:[],gen:0,volume:0.6};
+
+function bgmAvailable(){ return !!(SRC&&SRC.bgmFile) }
+function bgmStop(){
+  bgm.gen++; clearInterval(bgm.timer); bgm.timer=null;
+  for(const n of bgm.nodes){ try{ n.stop() }catch(_){} }
+  bgm.nodes=[]; bgm.track=-1;
+}
+async function bgmPlay(idx){
+  bgmStop();
+  if(idx<0||!bgmAvailable()) return;
+  const file=SRC.bgmFile, ch=idx&7;
+  if(!bgm.ctx){
+    bgm.ctx=new (window.AudioContext||window.webkitAudioContext)();
+    bgm.gain=bgm.ctx.createGain(); bgm.gain.connect(bgm.ctx.destination);
+  }
+  await bgm.ctx.resume();
+  bgm.gain.gain.value=bgm.volume;
+  const gen=++bgm.gen;
+  bgm.track=idx; bgm.pos=0; bgm.hist=[[0,0],[0,0]]; bgm.next=bgm.ctx.currentTime+0.15;
+  let busyNow=false;
+  const pump=async()=>{
+    if(busyNow||gen!==bgm.gen) return;
+    busyNow=true;
+    try{
+      while(gen===bgm.gen&&bgm.next-bgm.ctx.currentTime<3){
+        const N=19, buf=bgm.ctx.createBuffer(2,N*2016,37800);
+        const L=buf.getChannelData(0), R=buf.getChannelData(1);
+        let n=0;
+        while(n<N){
+          const k=ch+bgm.pos*8;
+          const b=k<file.sectors?await SRC.readRaw(file.lba+k):null;
+          if(gen!==bgm.gen) return;
+          // 音声セクタでなくなったら曲の終わり → 頭から繰り返す
+          if(!b||!(b[18]&4)){ bgm.pos=0; bgm.hist=[[0,0],[0,0]]; if(n===0) continue; break }
+          xaDecodeSector(b,bgm.hist,L,R,n*2016); n++; bgm.pos++;
+        }
+        const src=bgm.ctx.createBufferSource(); src.buffer=buf; src.connect(bgm.gain);
+        const when=Math.max(bgm.next,bgm.ctx.currentTime+0.02);
+        src.start(when,0,n*2016/37800); bgm.next=when+n*2016/37800;
+        bgm.nodes.push(src); src.onended=()=>{ bgm.nodes=bgm.nodes.filter(x=>x!==src) };
+      }
+    }catch(err){ console.error(err); bgmStop(); $('bgm').value='-1' }
+    finally{ busyNow=false }
+  };
+  bgm.timer=setInterval(pump,250); pump();
+}
+function bgmSetup(){
+  const box=$('bgmBox'), sel=$('bgm');
+  if(!bgmAvailable()){ box.hidden=true; return }
+  box.hidden=false;
+  sel.innerHTML='<option value="-1">なし</option>';
+  for(let i=0;i<8;i++){
+    const o=document.createElement('option'); o.value=String(i); o.textContent='曲 '+(i+1);
+    sel.appendChild(o);
+  }
+  sel.value='-1';
+  sel.onchange=()=>bgmPlay(+sel.value);
+  const v=$('bgmVol');
+  const saved=localStorage.getItem('rbvol');
+  if(saved!==null){ bgm.volume=+saved; v.value=saved }
+  v.oninput=()=>{ bgm.volume=+v.value; if(bgm.gain) bgm.gain.gain.value=bgm.volume;
+    try{ localStorage.setItem('rbvol',v.value) }catch(_){} };
+}
 
 </script>
 </body>
