@@ -554,7 +554,7 @@ function pshPixels(e){
 // ============================================================
 //  アトラスとメッシュの組み立て
 // ============================================================
-const NILTEX = " nil";
+const NILTEX = "\u0000nil";
 function buildAtlas(tex,pad){
   pad = pad||1;
   const nil={w:4,h:4,rgba:(function(){const a=new Uint8Array(64);
