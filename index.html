@@ -544,8 +544,8 @@ function pshPixels(e){
     let i;
     if(bpp===4){ const k=(y*w+x)>>1; if(k>=px.length) continue; i=(x&1)?(px[k]>>4):(px[k]&15) }
     else { const k=y*w+x; if(k>=px.length) continue; i=px[k] }
-    if(!i) continue;
     const c=(clut&&i<clut.length)?clut[i]:0, o=(y*w+x)*4;
+    if(c===0) continue;   // PS1 は「色が 0x0000 のときだけ」透明。0x8000 は不透明な黒
     out[o]=(c&31)*255/31|0; out[o+1]=((c>>5)&31)*255/31|0; out[o+2]=((c>>10)&31)*255/31|0; out[o+3]=255;
   }
   return out;
