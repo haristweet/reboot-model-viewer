@@ -154,7 +154,9 @@
       <p class="sub" id="discName"></p>
     </div>
     <div data-tab="chara"><label>キャラクター</label><select id="model"></select></div>
+    <div data-tab="chara"><label>もう一体ならべる</label><select id="model2"><option value="">なし</option></select></div>
     <div data-tab="move"><label>動き</label><select id="anim"></select></div>
+    <div data-tab="move" id="anim2Box" hidden><label>もう一体の動き</label><select id="anim2"></select></div>
     <div data-tab="move" id="playRow" class="row">
       <button class="btn" id="prev" title="前のコマ（←）">◀</button>
       <button class="btn" id="play" style="flex:2">停止</button>
@@ -833,12 +835,14 @@ function m3mul(a,b){const o=new Array(9);
 function m3v(a,v){return [a[0]*v[0]+a[3]*v[1]+a[6]*v[2], a[1]*v[0]+a[4]*v[1]+a[7]*v[2], a[2]*v[0]+a[5]*v[1]+a[8]*v[2]]}
 
 let M=null, mesh=null, tex=null;
+let M2=null, mesh2=null, tex2=null;
 const FRONT=Math.PI+0.5;   // キャラの正面から見る向き
-const state={yaw:FRONT,pitch:0.15,dist:2.6,pan:[0,0,0],playing:true,anim:0,frame:0,speed:1,t:0};
+const state={yaw:FRONT,pitch:0.15,dist:2.6,pan:[0,0,0],playing:true,anim:0,anim2:0,frame:0,speed:1,t:0};
 
-function poseAt(anim){
-  if(!anim||!anim.poses.length) return M.joints.map(()=>[1,0,0,0]);
-  const k=anim.keys[Math.min(state.frame,anim.keys.length-1)]||[0,0];
+function poseAt(anim,mdl){
+  mdl=mdl||M;
+  if(!anim||!anim.poses.length||!anim.keys.length) return mdl.joints.map(()=>[1,0,0,0]);
+  const k=anim.keys[state.frame%anim.keys.length]||[0,0];
   const i=Math.min(k[0],anim.poses.length-1), t=(k[1]||0)/128;
   const a=anim.poses[i], b=anim.poses[Math.min(i+1,anim.poses.length-1)];
   return a.map((q,j)=>{
@@ -848,8 +852,9 @@ function poseAt(anim){
     return [o[0]/l,o[1]/l,o[2]/l,o[3]/l];
   });
 }
-function buildBones(quats){
-  const J=M.joints, n=J.length, out=new Float32Array(48*16);
+function buildBones(quats,mdl,ofs){
+  const J=(mdl||M).joints, n=J.length, out=new Float32Array(48*16);
+  const ox=ofs?ofs[0]:0, oy=ofs?ofs[1]:0, oz=ofs?ofs[2]:0;
   let c=0;
   (function walk(i,R,T){
     while(i>=0&&i<n){
@@ -861,43 +866,78 @@ function buildBones(quats){
       out[o]=r[0];out[o+1]=r[1];out[o+2]=r[2];
       out[o+4]=r[3];out[o+5]=r[4];out[o+6]=r[5];
       out[o+8]=r[6];out[o+9]=r[7];out[o+10]=r[8];
-      out[o+12]=t[0];out[o+13]=t[1];out[o+14]=t[2];out[o+15]=1;
+      out[o+12]=t[0]+ox;out[o+13]=t[1]+oy;out[o+14]=t[2]+oz;out[o+15]=1;
       if(J[i].child>=0) walk(J[i].child,r,t);
       i=J[i].sib;
     }
   })(0,[1,0,0,0,1,0,0,0,1],[0,0,0]);
   return out;
 }
-function measure(){
-  const B=buildBones(poseAt(M.anims[state.anim]));
+function animOf(mdl){ return mdl===M2 ? mdl.anims[state.anim2] : mdl.anims[state.anim] }
+function bboxOf(mdl,ofs){
+  const B=buildBones(poseAt(animOf(mdl),mdl),mdl,ofs);
   let lo=[1e9,1e9,1e9], hi=[-1e9,-1e9,-1e9];
-  for(let i=0;i<M.bone.length;i++){
-    const b=M.bone[i]*16, x=M.pos[i*3],y=M.pos[i*3+1],z=M.pos[i*3+2];
+  for(let i=0;i<mdl.bone.length;i++){
+    const b=mdl.bone[i]*16, x=mdl.pos[i*3],y=mdl.pos[i*3+1],z=mdl.pos[i*3+2];
     const p=[B[b]*x+B[b+4]*y+B[b+8]*z+B[b+12],
              B[b+1]*x+B[b+5]*y+B[b+9]*z+B[b+13],
              B[b+2]*x+B[b+6]*y+B[b+10]*z+B[b+14]];
     for(let k=0;k<3;k++){lo[k]=Math.min(lo[k],p[k]);hi[k]=Math.max(hi[k],p[k])}
   }
-  M.center=[0,(lo[1]+hi[1])/2,0];
-  M.scale=Math.max(hi[0]-lo[0],hi[1]-lo[1],hi[2]-lo[2])/2||50;
+  return {lo:lo,hi:hi};
 }
-function setFilter(){
-  if(!tex) return;
+function measure(){
+  if(!M) return;
+  M.ofs=[0,0,0]; if(M2) M2.ofs=[0,0,0];
+  let b=bboxOf(M,null), lo=b.lo.slice(), hi=b.hi.slice();
+  if(M2){
+    // 横（x）に間を空けて並べる
+    const b2=bboxOf(M2,null);
+    const w1=b.hi[0]-b.lo[0], w2=b2.hi[0]-b2.lo[0];
+    const gap=0.18*Math.max(w1,w2,1);
+    const W=w1+gap+w2;
+    // 上は -y なので、足元＝y の大きいほう。そこをそろえる
+    const foot=Math.max(b.hi[1],b2.hi[1]);
+    M.ofs=[(-W/2+w1/2)-(b.lo[0]+b.hi[0])/2, foot-b.hi[1], 0];
+    M2.ofs=[(W/2-w2/2)-(b2.lo[0]+b2.hi[0])/2, foot-b2.hi[1], 0];
+    for(let k=0;k<3;k++){
+      lo[k]=Math.min(b.lo[k]+M.ofs[k], b2.lo[k]+M2.ofs[k]);
+      hi[k]=Math.max(b.hi[k]+M.ofs[k], b2.hi[k]+M2.ofs[k]);
+    }
+  }
+  M.center=[0,(lo[1]+hi[1])/2,0];
+  M.span=[hi[0]-lo[0],hi[1]-lo[1],hi[2]-lo[2]];
+  M.scale=Math.max(M.span[0],M.span[1],M.span[2])/2||50;
+}
+/* 画面の縦横比に合わせた「収まる大きさ」。横に並べたときだけ効く */
+function fitScale(){
+  if(!M) return 50;
+  const a=(cv.width/cv.height)||1;
+  const sp=M.span||[M.scale*2,M.scale*2,M.scale*2];
+  return Math.max(sp[1],Math.max(sp[0],sp[2])/a)/2||50;
+}
+function frameCount(){
+  if(!M) return 1;
+  const a=M.anims[state.anim], b=M2&&M2.anims[state.anim2];
+  return Math.max((a&&a.keys.length)||1,(b&&b.keys.length)||1);
+}
+function applyFilter(t){
+  if(!t) return;
   const f=$('smooth').checked?gl.LINEAR:gl.NEAREST;
-  gl.bindTexture(gl.TEXTURE_2D,tex);
+  gl.bindTexture(gl.TEXTURE_2D,t);
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,f);
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,f);
 }
-function useModel(d){
-  M=d;
-  if(tex) gl.deleteTexture(tex);
-  tex=gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D,tex);
+function setFilter(){ applyFilter(tex); applyFilter(tex2) }
+
+/* モデル1体ぶんを GPU に積む */
+function makeGpu(d){
+  const t=gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D,t);
   gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,d.atlas.W,d.atlas.H,0,gl.RGBA,gl.UNSIGNED_BYTE,d.atlas.buf);
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
-  setFilter();
-  if(mesh) for(const k of ['p','u','b','lp','lu','lb']) gl.deleteBuffer(mesh[k]);
+  applyFilter(t);
   const mk=arr=>{const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);
     gl.bufferData(gl.ARRAY_BUFFER,arr instanceof Float32Array?arr:new Float32Array(arr),gl.STATIC_DRAW);return b};
   const lp=[],lu=[],lb=[];
@@ -907,11 +947,18 @@ function useModel(d){
         lp.push(d.pos[(f+k)*3],d.pos[(f+k)*3+1],d.pos[(f+k)*3+2]);
         lu.push(d.uv[(f+k)*2],d.uv[(f+k)*2+1]); lb.push(d.bone[f+k]);
       }
-  mesh={p:mk(d.pos),u:mk(d.uv),b:mk(d.bone),n:d.bone.length,
-        lp:mk(lp),lu:mk(lu),lb:mk(lb),ln:lb.length};
-  const as=$('anim'); as.innerHTML='';
-  d.anims.forEach((a,i)=>{const o=document.createElement('option');o.value=i;o.textContent=a.name;as.appendChild(o)});
-  if(!d.anims.length){const o=document.createElement('option');o.textContent='（なし）';as.appendChild(o)}
+  return {tex:t, mesh:{p:mk(d.pos),u:mk(d.uv),b:mk(d.bone),n:d.bone.length,
+        lp:mk(lp),lu:mk(lu),lb:mk(lb),ln:lb.length}};
+}
+function dropGpu(ms,t){
+  if(t) gl.deleteTexture(t);
+  if(ms) for(const k of ['p','u','b','lp','lu','lb']) gl.deleteBuffer(ms[k]);
+}
+/* 動きの一覧を作って、立ち姿らしいものを選ぶ */
+function fillAnims(sel,d){
+  sel.innerHTML='';
+  d.anims.forEach((a,i)=>{const o=document.createElement('option');o.value=i;o.textContent=a.name;sel.appendChild(o)});
+  if(!d.anims.length){const o=document.createElement('option');o.textContent='（なし）';sel.appendChild(o)}
   const score=nm=>{ const n=nm.toLowerCase(); let s2=0;
     if(n.includes('stand')) s2+=100;
     if(n.includes('loop')) s2+=60;
@@ -920,7 +967,14 @@ function useModel(d){
     return s2 };
   let want=0, best=-1e9;
   d.anims.forEach((a,i)=>{ const s2=score(a.name); if(s2>best){ best=s2; want=i } });
-  as.value=String(want);
+  sel.value=String(want);
+  return want;
+}
+function useModel(d){
+  dropGpu(mesh,tex);
+  M=d; M.ofs=[0,0,0];
+  const g=makeGpu(d); tex=g.tex; mesh=g.mesh;
+  const want=fillAnims($('anim'),d);
   state.anim=want; state.frame=0; state.t=0;
   setAnim(want);
   measure();
@@ -932,9 +986,29 @@ function useModel(d){
 }
 function setAnim(i){
   state.anim=i; state.frame=0; state.t=0;
-  const a=M.anims[i], n=a?Math.max(1,a.keys.length):1;
-  $('frame').max=n-1; $('frame').value=0;
-  if(M.center) measure();
+  $('frame').max=frameCount()-1; $('frame').value=0;
+  if(M&&M.center) measure();
+}
+function setAnim2(i){
+  state.anim2=i; state.frame=0; state.t=0;
+  $('frame').max=frameCount()-1; $('frame').value=0;
+  if(M&&M.center) measure();
+}
+/* 2体目 */
+function useModel2(d){
+  dropGpu(mesh2,tex2);
+  if(!d){ M2=null; mesh2=null; tex2=null; $('anim2Box').hidden=true; measure(); syncFrameMax(); return }
+  M2=d; M2.ofs=[0,0,0];
+  const g=makeGpu(d); tex2=g.tex; mesh2=g.mesh;
+  $('anim2Box').hidden=false;
+  state.anim2=fillAnims($('anim2'),d);
+  measure(); syncFrameMax();
+}
+function syncFrameMax(){
+  const L=frameCount();
+  $('frame').max=L-1;
+  if(state.frame>L-1){ state.frame=0; state.t=0 }
+  $('frame').value=state.frame;
 }
 
 /* ---- 背景 ---- */
@@ -967,7 +1041,7 @@ function camAxes(){
 function panBy(dx,dy){
   if(!M) return;
   const a=camAxes();
-  const k=2*Math.tan(0.45)*state.dist*M.scale/Math.max(1,cv.clientHeight);
+  const k=2*Math.tan(0.45)*state.dist*fitScale()/Math.max(1,cv.clientHeight);
   for(let i=0;i<3;i++) state.pan[i]-=(a.right[i]*dx-a.up[i]*dy)*k;
 }
 function zoomAt(f,cx,cy){
@@ -1047,6 +1121,7 @@ $('reset').onclick=resetView;
 $('frame').oninput=e=>{ setPlaying(false); state.frame=+e.target.value; state.t=0 };
 $('speed').oninput=e=>{ state.speed=+e.target.value/100; $('spd').textContent=state.speed.toFixed(1)+'×' };
 $('anim').onchange=e=>setAnim(+e.target.value);
+$('anim2').onchange=e=>setAnim2(+e.target.value);
 $('smooth').onchange=setFilter;
 $('shot').onclick=saveShot;
 $('mp4').onclick=()=>record('video');
@@ -1062,8 +1137,8 @@ addEventListener('keydown',e=>{
 /* ---- スクショ ---- */
 function modelBox(){
   // いまの姿勢の頂点を画面に投影して、キャラの入る範囲を出す
-  const B=buildBones(poseAt(M.anims[state.anim]));
-  const s=M.scale, c=[M.center[0]+state.pan[0],M.center[1]+state.pan[1],M.center[2]+state.pan[2]];
+  const B=buildBones(poseAt(M.anims[state.anim]),M,M.ofs);
+  const s=fitScale(), c=[M.center[0]+state.pan[0],M.center[1]+state.pan[1],M.center[2]+state.pan[2]];
   const a=camAxes();
   const eye=[a.dir[0]*s*state.dist+c[0],a.dir[1]*s*state.dist+c[1],a.dir[2]*s*state.dist+c[2]];
   const proj=persp(0.9,cv.width/cv.height,s*0.05,s*40), view=lookAt(eye,c,[0,-1,0]);
@@ -1081,16 +1156,19 @@ function modelBox(){
     return e;
   };
   let lo=[1e9,1e9], hi=[-1e9,-1e9];
-  for(let i=0;i<M.bone.length;i++){
-    const b=M.bone[i]*16, x=M.pos[i*3],y=M.pos[i*3+1],z=M.pos[i*3+2];
-    const wx=B[b]*x+B[b+4]*y+B[b+8]*z+B[b+12];
-    const wy=B[b+1]*x+B[b+5]*y+B[b+9]*z+B[b+13];
-    const wz=B[b+2]*x+B[b+6]*y+B[b+10]*z+B[b+14];
-    const e=mvp(wx,wy,wz);
-    if(e[3]<=0) continue;
-    const sx=(e[0]/e[3]*0.5+0.5)*cv.width, sy=(0.5-e[1]/e[3]*0.5)*cv.height;
-    lo[0]=Math.min(lo[0],sx); lo[1]=Math.min(lo[1],sy);
-    hi[0]=Math.max(hi[0],sx); hi[1]=Math.max(hi[1],sy);
+  for(const mdl of (M2?[M,M2]:[M])){
+    const Bm=(mdl===M)?B:buildBones(poseAt(animOf(mdl),mdl),mdl,mdl.ofs);
+    for(let i=0;i<mdl.bone.length;i++){
+      const b=mdl.bone[i]*16, x=mdl.pos[i*3],y=mdl.pos[i*3+1],z=mdl.pos[i*3+2];
+      const wx=Bm[b]*x+Bm[b+4]*y+Bm[b+8]*z+Bm[b+12];
+      const wy=Bm[b+1]*x+Bm[b+5]*y+Bm[b+9]*z+Bm[b+13];
+      const wz=Bm[b+2]*x+Bm[b+6]*y+Bm[b+10]*z+Bm[b+14];
+      const e=mvp(wx,wy,wz);
+      if(e[3]<=0) continue;
+      const sx=(e[0]/e[3]*0.5+0.5)*cv.width, sy=(0.5-e[1]/e[3]*0.5)*cv.height;
+      lo[0]=Math.min(lo[0],sx); lo[1]=Math.min(lo[1],sy);
+      hi[0]=Math.max(hi[0],sx); hi[1]=Math.max(hi[1],sy);
+    }
   }
   const pad=8;
   return {x:Math.max(0,Math.floor(lo[0]-pad)),y:Math.max(0,Math.floor(lo[1]-pad)),
@@ -1162,31 +1240,35 @@ function drawScene(){
   const w=$('wire').checked;
   if(w) gl.disable(gl.CULL_FACE);
   else { gl.enable(gl.CULL_FACE); gl.frontFace(gl.CCW); gl.cullFace(gl.BACK) }
-  const s=M.scale;
+  const s=fitScale();
   const c=[M.center[0]+state.pan[0],M.center[1]+state.pan[1],M.center[2]+state.pan[2]];
   const a=camAxes();
   const eye=[a.dir[0]*s*state.dist+c[0],a.dir[1]*s*state.dist+c[1],a.dir[2]*s*state.dist+c[2]];
   gl.uniformMatrix4fv(U.proj,false,persp(0.9,cv.width/cv.height,s*0.05,s*40));
   gl.uniformMatrix4fv(U.view,false,lookAt(eye,c,[0,-1,0]));
-  gl.uniformMatrix4fv(U.bone,false,buildBones(poseAt(M.anims[state.anim])));
   gl.uniform1f(U.flat,w?1:0);
-  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,tex); gl.uniform1i(U.tex,0);
-  gl.bindBuffer(gl.ARRAY_BUFFER,w?mesh.lp:mesh.p); gl.enableVertexAttribArray(A.pos); gl.vertexAttribPointer(A.pos,3,gl.FLOAT,false,0,0);
-  gl.bindBuffer(gl.ARRAY_BUFFER,w?mesh.lu:mesh.u); gl.enableVertexAttribArray(A.uv);  gl.vertexAttribPointer(A.uv,2,gl.FLOAT,false,0,0);
-  gl.bindBuffer(gl.ARRAY_BUFFER,w?mesh.lb:mesh.b); gl.enableVertexAttribArray(A.bone);gl.vertexAttribPointer(A.bone,1,gl.FLOAT,false,0,0);
-  gl.drawArrays(w?gl.LINES:gl.TRIANGLES,0,w?mesh.ln:mesh.n);
+  const one=(mdl,ms,tx)=>{
+    gl.uniformMatrix4fv(U.bone,false,buildBones(poseAt(animOf(mdl),mdl),mdl,mdl.ofs));
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,tx); gl.uniform1i(U.tex,0);
+    gl.bindBuffer(gl.ARRAY_BUFFER,w?ms.lp:ms.p); gl.enableVertexAttribArray(A.pos); gl.vertexAttribPointer(A.pos,3,gl.FLOAT,false,0,0);
+    gl.bindBuffer(gl.ARRAY_BUFFER,w?ms.lu:ms.u); gl.enableVertexAttribArray(A.uv);  gl.vertexAttribPointer(A.uv,2,gl.FLOAT,false,0,0);
+    gl.bindBuffer(gl.ARRAY_BUFFER,w?ms.lb:ms.b); gl.enableVertexAttribArray(A.bone);gl.vertexAttribPointer(A.bone,1,gl.FLOAT,false,0,0);
+    gl.drawArrays(w?gl.LINES:gl.TRIANGLES,0,w?ms.ln:ms.n);
+  };
+  one(M,mesh,tex);
+  if(M2&&mesh2) one(M2,mesh2,tex2);
 }
 function frame(ts){
   requestAnimationFrame(frame);
   if(!M||!mesh) return;
   const dt=Math.min(0.1,(ts-last)/1000); last=ts;
-  const a=M.anims[state.anim];
-  if(state.playing&&a&&a.keys.length){
+  const a=M.anims[state.anim], L=frameCount();
+  if(state.playing&&L>1){
     state.t+=dt*30*state.speed;
-    if(state.t>=1){ state.frame=(state.frame+Math.floor(state.t))%a.keys.length; state.t%=1;
+    if(state.t>=1){ state.frame=(state.frame+Math.floor(state.t))%L; state.t%=1;
       $('frame').value=state.frame }
   }
-  $('fno').textContent=(a&&a.keys.length)?(state.frame+1)+' / '+a.keys.length:'—';
+  $('fno').textContent=L>1?(state.frame+1)+' / '+L:'—';
   drawScene();
 }
 requestAnimationFrame(frame);
@@ -1217,6 +1299,10 @@ async function start(files){
     const want=['ENZOGUN','BOBGUN','ENZOCAN','BOBCANON'].find(n=>names.includes(n)&&!LIB.models[n].unused);
     ms.value=want||names.find(n=>!LIB.models[n].unused)||names[0];
     ms.onchange=()=>pick(ms.value);
+    const ms2=$('model2'); ms2.innerHTML='<option value="">なし</option>';
+    names.forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;ms2.appendChild(o)});
+    ms2.value=''; ms2.onchange=()=>pick2(ms2.value);
+    useModel2(null);
     $('discName').textContent=(files[0]&&files[0].name)||'';
     bgmSetup();
     $('intro').style.display='none';
@@ -1231,6 +1317,16 @@ async function pick(name){
     const m=await loadOne(SRC,LIB,name,t=>busy(t));
     useModel(m);
   }catch(e){ busy(''); alert('読み込めませんでした: '+(e.message||e)); return }
+  busy('');
+}
+async function pick2(name){
+  if(!name){ useModel2(null); return }
+  busy('読み込み中…');
+  try{
+    await new Promise(r=>setTimeout(r,16));
+    const m=await loadOne(SRC,LIB,name,t=>busy(t));
+    useModel2(m);
+  }catch(e){ busy(''); $('model2').value=''; alert('読み込めませんでした: '+(e.message||e)); return }
   busy('');
 }
 
@@ -1261,7 +1357,7 @@ const recMsg=t=>{ $('rec').textContent=t||'' };
 let recBusy=false;
 
 function unionBox(){
-  const a=M.anims[state.anim], n=(a&&a.keys.length)||1;
+  const n=frameCount();
   let lo=[1e9,1e9], hi=[-1e9,-1e9];
   const keep=state.frame;
   for(let f=0;f<n;f++){
@@ -1279,7 +1375,7 @@ function unionBox(){
 async function record(fmt){
   if(!M||recBusy) return;
   const a=M.anims[state.anim];
-  if(!a||!a.keys.length){ recMsg('この動きはコマがありません'); return }
+  if(frameCount()<2){ recMsg('この動きはコマがありません'); return }
   recBusy=true;
   const keepFrame=state.frame, keepPlay=state.playing;
   setPlaying(false);
@@ -1298,9 +1394,9 @@ async function record(fmt){
         g.fillStyle='rgb('+c.map(v=>Math.round(v*255)).join(',')+')'; g.fillRect(0,0,ow,oh) }
       g.drawImage(cv,r.x,r.y,r.w,r.h,0,0,ow,oh);
     };
-    const total=a.keys.length;
+    const total=frameCount();
     const blob = fmt==='video' ? await encVideo(out,paint,total) : await encApng(out,g,paint,total);
-    const base=(M.name||'reboot')+'_'+a.name;
+    const base=(M.name||'reboot')+(M2?'+'+M2.name:'')+'_'+((a&&a.name)||'pose');
     const fn=base+(fmt==='apng'?'.png':(blob.type.includes('mp4')?'.mp4':'.webm'));
     recMsg('');
     showDone(blob,fn,total+'コマ');
